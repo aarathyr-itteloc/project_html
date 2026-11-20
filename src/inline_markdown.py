@@ -72,4 +72,39 @@ def split_nodes_image(old_nodes: list[TextNode]) -> list[TextNode]:
 
 
 def split_nodes_link(old_nodes: list[TextNode]) -> list[TextNode]:
-    pass
+    new_nodes: list[TextNode] = []
+
+    for node in old_nodes:
+        if node.text_type != TextType.TEXT:
+            new_nodes.append(node)
+            continue
+
+        links = extract_markdown_links(node.text)
+        if not links:
+            new_nodes.append(node)
+            continue
+
+        remaining = node.text
+        for link_text, link_url in links:
+            sections = remaining.split(f"[{link_text}]({link_url})", 1)
+            if len(sections) != 2:
+                raise ValueError("invalid Markdown, link section not closed")
+            if sections[0] != "":
+                new_nodes.append(TextNode(sections[0], TextType.TEXT))
+            new_nodes.append(TextNode(link_text, TextType.LINK, link_url))
+            remaining = sections[1]
+
+        if remaining != "":
+            new_nodes.append(TextNode(remaining, TextType.TEXT))
+
+    return new_nodes
+
+
+def text_to_textnodes(text: str) -> list[TextNode]:
+    new_nodes=[TextNode(text,TextType.TEXT)]
+    new_nodes=split_nodes_delimiter(new_nodes,"`",TextType.CODE)
+    new_nodes=split_nodes_link(new_nodes)
+    new_nodes=split_nodes_image(new_nodes)
+    new_nodes=split_nodes_delimiter(new_nodes,"**",TextType.BOLD)
+    new_nodes=split_nodes_delimiter(new_nodes,"_",TextType.ITALIC)
+    return new_nodes
